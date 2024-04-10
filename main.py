@@ -103,21 +103,27 @@ class GraphApp:
 
         edge_subgraph = self.graph.edge_subgraph([(edge[0], edge[1]) for edge in self.edges])  # Подграф, содержащий только заданные ребра
 
-        all_treasure_paths = {}
-        for treasure in treasures:
-            path = nx.shortest_path(edge_subgraph, start_node, treasure, weight='weight')
-            all_treasure_paths[treasure] = path
-
-        all_paths = [nx.shortest_path(edge_subgraph, path[-1], start_node, weight='weight') for path in all_treasure_paths.values()]
-
         shortest_length = float('inf')
         shortest_path = []
 
-        for path in all_paths:
+        for treasure in treasures:
+            path = nx.shortest_path(edge_subgraph, start_node, treasure, weight='weight')
             length = sum(edge_subgraph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
             if length < shortest_length:
                 shortest_length = length
                 shortest_path = path
+
+        # Перебираем все возможные пути между сокровищами и выбираем кратчайший
+        for i in range(len(treasures)):
+            for j in range(i + 1, len(treasures)):
+                path = nx.shortest_path(edge_subgraph, treasures[i], treasures[j], weight='weight')
+                length = sum(edge_subgraph[path[k]][path[k+1]]['weight'] for k in range(len(path) - 1))
+                if length < shortest_length:
+                    shortest_length = length
+                    shortest_path = path
+
+        # Добавляем начальную вершину в конец пути
+        shortest_path.append(start_node)
 
         print("Кратчайший путь с сокровищами:", shortest_path)
         print("Стоимость всего пути:", shortest_length)
@@ -127,9 +133,6 @@ class GraphApp:
             x1, y1 = map(int, shortest_path[i].strip("()").split(", "))
             x2, y2 = map(int, shortest_path[i+1].strip("()").split(", "))
             self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
-        x1, y1 = map(int, shortest_path[-1].strip("()").split(", "))
-        x2, y2 = map(int, shortest_path[0].strip("()").split(", "))
-        self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
 
         self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{shortest_length:.2f}"))
 
