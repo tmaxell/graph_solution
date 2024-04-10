@@ -13,6 +13,7 @@ class GraphApp:
         self.nodes = {}
         self.edges = []
         self.start_node = None
+        self.node_count = 1
 
         self.canvas = tk.Canvas(self.root, width=600, height=400)
         self.canvas.pack()
@@ -36,14 +37,12 @@ class GraphApp:
         self.table.heading("weight", text="Вес ребра")
         self.table.grid(row=1, column=0, columnspan=2)
 
-        self.node_count = 1
-
     def add_node(self, event):
         x, y = event.x, event.y
         node = f"({x}, {y})"
         if node not in self.nodes:
             self.graph.add_node(node)
-            self.nodes[node] = {'treasure': False, 'color': 'black'}  
+            self.nodes[node] = {'treasure': False, 'color': 'black', 'id': self.node_count}  
             self.table.insert("", "end", values=(node, "", ""))
             self.canvas.create_oval(x-5, y-5, x+5, y+5, fill=self.nodes[node]['color'])  
             self.canvas.create_text(x, y, text=str(self.node_count), fill="white")
@@ -102,18 +101,20 @@ class GraphApp:
 
         treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
 
+        edge_subgraph = self.graph.edge_subgraph(self.edges)  # Подграф, содержащий только заданные ребра
+
         all_treasure_paths = {}
         for treasure in treasures:
-            path = nx.shortest_path(self.graph, start_node, treasure, weight='weight')
+            path = nx.shortest_path(edge_subgraph, start_node, treasure, weight='weight')
             all_treasure_paths[treasure] = path
 
-        all_paths = [nx.shortest_path(self.graph, path[-1], start_node, weight='weight') for path in all_treasure_paths.values()]
+        all_paths = [nx.shortest_path(edge_subgraph, path[-1], start_node, weight='weight') for path in all_treasure_paths.values()]
 
         shortest_length = float('inf')
         shortest_path = []
 
         for path in all_paths:
-            length = sum(self.graph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
+            length = sum(edge_subgraph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
             if length < shortest_length:
                 shortest_length = length
                 shortest_path = path
@@ -136,7 +137,7 @@ class GraphApp:
         for node, data in self.nodes.items():
             x, y = map(int, node.strip("()").split(", "))
             self.canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill=data['color'])
-            self.canvas.create_text(x, y, text=str(self.node_count), fill="white")
+            self.canvas.create_text(x, y, text=str(data['id']), fill="white")
         for edge in self.graph.edges():
             x1, y1 = map(int, edge[0].strip("()").split(", "))
             x2, y2 = map(int, edge[1].strip("()").split(", "))
