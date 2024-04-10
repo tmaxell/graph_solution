@@ -101,7 +101,7 @@ class GraphApp:
 
         treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
 
-        edge_subgraph = self.graph.edge_subgraph(self.edges)  # Подграф, содержащий только заданные ребра
+        edge_subgraph = self.graph.edge_subgraph([(edge[0], edge[1]) for edge in self.edges])  # Подграф, содержащий только заданные ребра
 
         all_treasure_paths = {}
         for treasure in treasures:
