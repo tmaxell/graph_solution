@@ -98,19 +98,24 @@ class GraphApp:
             print("Недостаточно вершин для построения цикла")
             return
 
+        treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
         start_node = next(iter(self.nodes))  # Начинаем с первой вершины в графе
 
-        treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
-
-        shortest_path = nx.shortest_path(self.graph, start_node, start_node, weight='weight')  # Используем алгоритм Дейкстры для поиска кратчайшего пути
-        shortest_length = nx.shortest_path_length(self.graph, start_node, start_node, weight='weight')
-
+        all_treasure_paths = {}
         for treasure in treasures:
             path = nx.shortest_path(self.graph, start_node, treasure, weight='weight')
-            path_length = nx.shortest_path_length(self.graph, start_node, treasure, weight='weight')
-            if path_length < shortest_length:
+            all_treasure_paths[treasure] = path
+
+        all_paths = [nx.shortest_path(self.graph, path[-1], start_node, weight='weight') for path in all_treasure_paths.values()]
+
+        shortest_length = float('inf')
+        shortest_path = []
+
+        for path in all_paths:
+            length = sum(self.graph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
+            if length < shortest_length:
+                shortest_length = length
                 shortest_path = path
-                shortest_length = path_length
 
         print("Кратчайший путь с сокровищами:", shortest_path)
         print("Стоимость всего пути:", shortest_length)
