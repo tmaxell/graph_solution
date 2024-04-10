@@ -3,6 +3,7 @@ from tkinter import ttk
 import networkx as nx
 import math
 import random
+from collections import deque
 
 class GraphApp:
     def __init__(self, root):
@@ -106,23 +107,26 @@ class GraphApp:
         shortest_length = float('inf')
         shortest_path = []
 
+        # BFS для каждого сокровища
         for treasure in treasures:
-            path = nx.shortest_path(edge_subgraph, start_node, treasure, weight='weight')
-            length = sum(edge_subgraph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
-            if length < shortest_length:
-                shortest_length = length
-                shortest_path = path
-
-        # Перебираем все возможные пути между сокровищами и выбираем кратчайший
-        for i in range(len(treasures)):
-            for j in range(i + 1, len(treasures)):
-                path = nx.shortest_path(edge_subgraph, treasures[i], treasures[j], weight='weight')
-                length = sum(edge_subgraph[path[k]][path[k+1]]['weight'] for k in range(len(path) - 1))
-                if length < shortest_length:
-                    shortest_length = length
-                    shortest_path = path
-
-        # Добавляем начальную вершину в конец пути
+            visited = set()
+            queue = deque([(start_node, [])])
+            while queue:
+                current_node, path = queue.popleft()
+                if current_node == treasure:
+                    path.append(current_node)
+                    length = sum(edge_subgraph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1))
+                    if length < shortest_length:
+                        shortest_length = length
+                        shortest_path = path
+                    break
+                if current_node not in visited:
+                    visited.add(current_node)
+                    for neighbor in edge_subgraph.neighbors(current_node):
+                        if neighbor not in visited:
+                            queue.append((neighbor, path + [current_node]))
+        
+        # Возвращаемся в начальную вершину
         shortest_path.append(start_node)
 
         print("Кратчайший путь с сокровищами:", shortest_path)
