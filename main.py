@@ -51,6 +51,12 @@ def add_edge(event):
             elif edge_end is None:
                 edge_end = node
                 draw_edge(canvas, edge_start, edge_end)
+                if edge_start not in graph:
+                    graph[edge_start] = []
+                if edge_end not in graph:
+                    graph[edge_end] = []
+                graph[edge_start].append(edge_end)
+                graph[edge_end].append(edge_start)
                 edge_start = None
                 edge_end = None
                 return
@@ -70,25 +76,12 @@ def calculate_path():
     else:
         messagebox.showinfo("Ошибка", "Сокровища не могут быть собраны.")
 
-# граф
-graph = {
-    'вход': ['комната1', 'комната2'],
-    'комната1': ['комната3', 'коридор1'],
-    'комната2': ['коридор1', 'комната4'],
-    'комната3': ['коридор1', 'коридор2'],
-    'комната4': ['коридор2', 'коридор3'],
-    'коридор1': ['комната5'],
-    'коридор2': ['коридор4'],
-    'коридор3': ['выход'],
-    'комната5': ['выход'],
-    'коридор4': ['выход']
-}
-
 # Местоположение сокровищ
 treasures = set()
 current_node = None
 edge_start = None
 edge_end = None
+graph = {}
 
 # Создание окна
 root = tk.Tk()
@@ -102,12 +95,6 @@ canvas.pack(expand=True, fill="both")
 node_radius = 20
 treasure_radius = 10
 nodes = {}
-for node, neighbors in graph.items():
-    x = 50 + 700 * (ord(node[0]) - ord('а')) / 25
-    y = 50 + 500 * (int(node[-1]) - 1) / 4
-    canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill='blue')
-    canvas.create_text(x, y, text=node)
-    nodes[node] = (x, y)
 
 # Обработка кликов по вершинам
 canvas.bind("<Button-1>", click_node)
