@@ -1,110 +1,149 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk
+import networkx as nx
+import math
+import random
 
-# DFS
-def dfs(graph, node, visited, treasures_collected, path):
-    visited.add(node)
-    path.append(node)
+class GraphApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Поиск кратчайшего гамильтонова цикла")
 
-    if node in treasures:
-        treasures_collected.add(node)
-        if len(treasures_collected) == len(treasures):
-            return path  # Вернуть путь, если все сокровища собраны
+        self.graph = nx.Graph()
+        self.nodes = {}
+        self.edges = []
+        self.start_node = None
 
-    for neighbor in graph[node]:
-        if neighbor not in visited:
-            new_path = dfs(graph, neighbor, visited, treasures_collected, path.copy())
-            if new_path:
-                return new_path
-    
-    return None
+        self.canvas = tk.Canvas(self.root, width=600, height=400)
+        self.canvas.pack()
 
-def draw_edge(canvas, start, end):
-    x1, y1 = nodes[start]
-    x2, y2 = nodes[end]
-    canvas.create_line(x1, y1, x2, y2)
+        self.canvas.bind("<Button-1>", self.add_node)
+        self.canvas.bind("<Button-2>", self.start_edge)
+        self.canvas.bind("<Double-Button-1>", self.set_treasure)  
 
-def click_node(event):
-    global current_node
-    for node, (x, y) in nodes.items():
-        if abs(event.x - x) < node_radius and abs(event.y - y) < node_radius:
-            current_node = node
-            if current_node not in treasures:
-                treasures.add(current_node)
-                canvas.create_oval(x - treasure_radius, y - treasure_radius, x + treasure_radius, y + treasure_radius, fill='yellow')
+        self.frame = ttk.Frame(self.root)
+        self.frame.pack()
 
-def double_click_node(event):
-    global current_node
-    for node, (x, y) in nodes.items():
-        if abs(event.x - x) < node_radius and abs(event.y - y) < node_radius:
-            current_node = node
-            messagebox.showinfo("Сокровище", "Сокровище установлено в вершине: " + current_node)
+        self.find_cycle_button = ttk.Button(self.frame, text="Поиск цикла", command=self.find_cycle)
+        self.find_cycle_button.grid(row=0, column=0)
 
-def add_edge(event):
-    global edge_start
-    global edge_end
-    for node, (x, y) in nodes.items():
-        if abs(event.x - x) < node_radius and abs(event.y - y) < node_radius:
-            if edge_start is None:
-                edge_start = node
-                return
-            elif edge_end is None:
-                edge_end = node
-                draw_edge(canvas, edge_start, edge_end)
-                if edge_start not in graph:
-                    graph[edge_start] = []
-                if edge_end not in graph:
-                    graph[edge_end] = []
-                graph[edge_start].append(edge_end)
-                graph[edge_end].append(edge_start)
-                edge_start = None
-                edge_end = None
-                return
+        self.clear_button = ttk.Button(self.frame, text="Очистить полотно", command=self.clear_canvas)
+        self.clear_button.grid(row=0, column=1)
 
-def calculate_path():
-    # Используем DFS для поиска оптимального пути
-    visited = set()
-    treasures_collected = set()
-    start_node = 'вход'
-    optimal_path = dfs(graph, start_node, visited, treasures_collected, [])
+        self.table = ttk.Treeview(self.frame, columns=("start", "end", "weight"), show="headings")
+        self.table.heading("start", text="Начальная вершина")
+        self.table.heading("end", text="Конечная вершина")
+        self.table.heading("weight", text="Вес ребра")
+        self.table.grid(row=1, column=0, columnspan=2)
 
-    # Результат
-    if optimal_path:
-        messagebox.showinfo("Оптимальный путь", "Оптимальный путь для сбора сокровищ и возврата ко входу: " + str(optimal_path))
-        for i in range(len(optimal_path)-1):
-            draw_edge(canvas, optimal_path[i], optimal_path[i+1])
-    else:
-        messagebox.showinfo("Ошибка", "Сокровища не могут быть собраны.")
+        self.node_count = 1
 
-# Местоположение сокровищ
-treasures = set()
-current_node = None
-edge_start = None
-edge_end = None
-graph = {}
+    def add_node(self, event):
+        x, y = event.x, event.y
+        node = f"({x}, {y})"
+        if node not in self.nodes:
+            self.graph.add_node(node)
+            self.nodes[node] = {'treasure': False, 'color': 'black'}  
+            self.table.insert("", "end", values=(node, "", ""))
+            self.canvas.create_oval(x-5, y-5, x+5, y+5, fill=self.nodes[node]['color'])  
+            self.canvas.create_text(x, y, text=str(self.node_count), fill="white")
+            self.node_count += 1
 
-# Создание окна
-root = tk.Tk()
-root.title("Сбор сокровищ")
+    def start_edge(self, event):
+        x, y = event.x, event.y
+        closest_node = None
+        min_distance = float('inf')
+        for node in self.nodes.keys():
+            nx, ny = map(int, node.strip("()").split(", "))
+            distance = ((x - nx) ** 2 + (y - ny) ** 2) ** 0.5
+            if distance < min_distance:
+                min_distance = distance
+                closest_node = node
+        if closest_node:
+            if self.start_node is None:
+                self.start_node = closest_node
+            else:
+                end_node = closest_node
+                weight = min_distance
+                if (self.start_node, end_node) not in self.edges and (end_node, self.start_node) not in self.edges:
+                    self.graph.add_edge(self.start_node, end_node, weight=weight)
+                    self.edges.append((self.start_node, end_node, weight))
+                    self.table.insert("", "end", values=(self.start_node, end_node, f"{weight:.2f}"))
+                    x1, y1 = map(int, self.start_node.strip("()").split(", "))
+                    x2, y2 = map(int, end_node.strip("()").split(", "))
+                    self.canvas.create_line(x1, y1, x2, y2, fill="blue")
+                self.start_node = None
 
-# Создание холста
-canvas = tk.Canvas(root, width=800, height=600, bg="white")
-canvas.pack(expand=True, fill="both")
+    def set_treasure(self, event):
+        x, y = event.x, event.y
+        closest_node = None
+        min_distance = float('inf')
+        for node, data in self.nodes.items():
+            nx, ny = map(int, node.strip("()").split(", "))
+            distance = ((x - nx) ** 2 + (y - ny) ** 2) ** 0.5
+            if distance < min_distance:
+                min_distance = distance
+                closest_node = node
+        if closest_node:
+            self.nodes[closest_node]['treasure'] = not self.nodes[closest_node]['treasure']
+            if self.nodes[closest_node]['treasure']:
+                self.nodes[closest_node]['color'] = 'gold'
+            else:
+                self.nodes[closest_node]['color'] = 'black'
+            self.canvas.delete("all")
+            self.redraw_graph()
 
-# Рисование вершин
-node_radius = 20
-treasure_radius = 10
-nodes = {}
+    def find_cycle(self):
+        if len(self.nodes) < 3:
+            print("Недостаточно вершин для построения цикла")
+            return
 
-# Обработка кликов по вершинам
-canvas.bind("<Button-1>", click_node)
-canvas.bind("<Double-1>", double_click_node)
+        treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
+        start_node = treasures[0]  # Начинаем с первой вершины с сокровищем
 
-# Обработка кликов правой кнопкой мыши для добавления ребра
-canvas.bind("<Button-3>", add_edge)
+        shortest_path = nx.shortest_path(self.graph, start_node, start_node, weight='weight')  # Используем алгоритм Дейкстры для поиска кратчайшего пути
+        shortest_length = nx.shortest_path_length(self.graph, start_node, start_node, weight='weight')
 
-# Кнопка для расчета пути
-calculate_button = tk.Button(root, text="Рассчитать путь", command=calculate_path)
-calculate_button.pack()
+        for treasure in treasures:
+            path = nx.shortest_path(self.graph, start_node, treasure, weight='weight')
+            path_length = nx.shortest_path_length(self.graph, start_node, treasure, weight='weight')
+            if path_length < shortest_length:
+                shortest_path = path
+                shortest_length = path_length
 
-root.mainloop()
+        print("Кратчайший путь с сокровищами:", shortest_path)
+        print("Стоимость всего пути:", shortest_length)
+
+        self.canvas.delete("cycle")
+        for i in range(len(shortest_path) - 1):
+            x1, y1 = map(int, shortest_path[i].strip("()").split(", "))
+            x2, y2 = map(int, shortest_path[i+1].strip("()").split(", "))
+            self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
+        x1, y1 = map(int, shortest_path[-1].strip("()").split(", "))
+        x2, y2 = map(int, shortest_path[0].strip("()").split(", "))
+        self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
+
+        self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{shortest_length:.2f}"))
+
+    def redraw_graph(self):
+        for node, data in self.nodes.items():
+            x, y = map(int, node.strip("()").split(", "))
+            self.canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill=data['color'])
+            self.canvas.create_text(x, y, text=str(self.node_count), fill="white")
+        for edge in self.graph.edges():
+            x1, y1 = map(int, edge[0].strip("()").split(", "))
+            x2, y2 = map(int, edge[1].strip("()").split(", "))
+            self.canvas.create_line(x1, y1, x2, y2, fill="blue")
+
+    def clear_canvas(self):
+        self.graph.clear()
+        self.nodes.clear()
+        self.edges.clear()
+        self.canvas.delete("all")
+        self.table.delete(*self.table.get_children())
+        self.node_count = 1
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = GraphApp(root)
+    root.mainloop()
