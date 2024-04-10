@@ -98,8 +98,9 @@ class GraphApp:
             print("Недостаточно вершин для построения цикла")
             return
 
-        treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
         start_node = next(iter(self.nodes))  # Начинаем с первой вершины в графе
+
+        treasures = [node for node, data in self.nodes.items() if data['treasure']]  # Список вершин с сокровищами
 
         all_treasure_paths = {}
         for treasure in treasures:
