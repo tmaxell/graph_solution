@@ -1,15 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
 import networkx as nx
-import math
-import random
-import itertools
 from collections import deque
 
 class GraphApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Поиск кратчайшего гамильтонова цикла")
+        self.root.title("Поиск сокровища")
 
         self.graph = nx.Graph()
         self.nodes = []
@@ -93,65 +90,50 @@ class GraphApp:
                 self.start_node = None
 
     def find_cycle(self):
-        if len(self.nodes) < 3:
-            print("Недостаточно вершин для построения цикла")
+        if len(self.nodes) < 3 or not self.treasures:
+            print("Недостаточно вершин или сокровищ для построения цикла")
             return
 
-        edge_subgraph = self.graph.edge_subgraph([(edge[0], edge[1]) for edge in self.edges])  # Подграф, содержащий только заданные ребра
+        start_node = self.nodes[0]  # Стартовая вершина
+        visited = set()  # Множество посещенных вершин
+        path = [start_node]  # Путь, который мы будем строить
+        treasures_to_visit = set(self.treasures)  # Множество оставшихся для посещения сокровищ
+        total_length = 0.0  # Общая длина пути
 
-        shortest_length = float('inf')
-        shortest_path = []
+        def dfs(node):
+            nonlocal total_length
 
-        for perm in itertools.permutations(self.treasures):  # Перебираем все возможные порядки сокровищ
-            start_node = next(iter(self.nodes))  # Начинаем с первой вершины в графе
-            current_path = [start_node]  # Текущий путь
-            current_length = 0  # Длина текущего пути
-            visited = set()  # Множество посещенных вершин
+            visited.add(node)  # Помечаем текущую вершину как посещенную
+            if node in treasures_to_visit:  # Если текущая вершина содержит сокровище
+                treasures_to_visit.remove(node)  # Удаляем сокровище из списка оставшихся для посещения
+                # Добавляем длину ребра, если оно существует
+                if (path[-1], node) in self.edges:
+                    total_length += self.graph.edges[path[-1], node]['weight']
 
-            for treasure in perm:
-                queue = deque([(start_node, [])])  # Очередь для поиска в ширину
-                found = False
-                while queue:
-                    current_node, path = queue.popleft()
-                    if current_node == treasure:  # Нашли сокровище
-                        current_path.extend(path)  # Добавляем путь до сокровища к текущему пути
-                        current_length += sum(edge_subgraph[path[i]][path[i+1]]['weight'] for i in range(len(path) - 1) if (path[i], path[i+1]) in edge_subgraph.edges)  # Обновляем длину текущего пути
-                        visited.update(path)  # Обновляем посещенные вершины
-                        current_path.append(current_node)  # Добавляем сокровище к текущему пути
-                        current_length += sum(edge_subgraph[current_node][next_node]['weight'] for next_node in edge_subgraph.neighbors(current_node))  # Обновляем длину текущего пути
-                        start_node = current_node  # Обновляем начальную вершину для следующего поиска
-                        found = True
-                        break
-                    if current_node not in visited:
-                        visited.add(current_node)
-                        for neighbor in edge_subgraph.neighbors(current_node):
-                            if neighbor in path:
-                                continue
-                            queue.append((neighbor, path + [current_node]))
+            for neighbor in self.graph.neighbors(node):  # Проходимся по соседям текущей вершины
+                if neighbor not in visited:  # Если соседняя вершина не посещена
+                    path.append(neighbor)  # Добавляем ее в путь
+                    dfs(neighbor)  # Рекурсивно вызываем обход для соседней вершины
 
-                if not found:
-                    break
+        dfs(start_node)  # Запускаем обход в глубину из стартовой вершины
 
-            if not found:
-                continue
+        # Добавляем ребро, соединяющее последнюю вершину в пути с начальной, если оно существует
+        if (path[-1], start_node) in self.edges:
+            total_length += self.graph.edges[path[-1], start_node]['weight']
+            path.append(start_node)
 
-            current_path.append(next(iter(self.nodes)))  # Добавляем возвращение в начальную вершину
-            current_length += sum(edge_subgraph[current_path[i]][current_path[i+1]]['weight'] for i in range(len(current_path) - 1) if (current_path[i], current_path[i+1]) in edge_subgraph.edges)  # Обновляем длину текущего пути
+        print("Кратчайший путь с сокровищами:", path)
+        print("Стоимость всего пути:", total_length)
 
-            if current_length < shortest_length:  # Если текущий путь короче кратчайшего найденного пути
-                shortest_length = current_length  # Обновляем кратчайшую длину
-                shortest_path = current_path  # Обновляем кратчайший путь
-
-        print("Кратчайший путь с сокровищами:", shortest_path)
-        print("Стоимость всего пути:", shortest_length)
-
+        # Отображаем путь на холсте
         self.canvas.delete("cycle")
-        for i in range(len(shortest_path) - 1):
-            x1, y1 = map(int, shortest_path[i].strip("()").split(", "))
-            x2, y2 = map(int, shortest_path[i+1].strip("()").split(", "))
+        for i in range(len(path) - 1):
+            x1, y1 = map(int, path[i].strip("()").split(", "))
+            x2, y2 = map(int, path[i + 1].strip("()").split(", "))
             self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
 
-        self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{shortest_length:.2f}"))
+        self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{total_length:.2f}"))
+
 
     def clear_canvas(self):
         self.graph.clear()
