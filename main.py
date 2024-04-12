@@ -97,30 +97,22 @@ class GraphApp:
         start_node = self.nodes[0]  # Стартовая вершина
         visited = set()  # Множество посещенных вершин
         path = [start_node]  # Путь, который мы будем строить
-        treasures_to_visit = set(self.treasures)  # Множество оставшихся для посещения сокровищ
         total_length = 0.0  # Общая длина пути
 
-        def dfs(node):
-            nonlocal total_length
+        for treasure in self.treasures:
+            if nx.has_path(self.graph, start_node, treasure):
+                # Находим кратчайший путь от вершины 1 к текущему сокровищу
+                shortest_path = nx.shortest_path(self.graph, start_node, treasure, weight='weight')
+                # Добавляем длину найденного пути к общей длине
+                total_length += nx.shortest_path_length(self.graph, start_node, treasure, weight='weight')
+                # Добавляем найденный путь к общему пути
+                path.extend(shortest_path[1:])  # Исключаем стартовую вершину, так как она уже включена в path
 
-            visited.add(node)  # Помечаем текущую вершину как посещенную
-            if node in treasures_to_visit:  # Если текущая вершина содержит сокровище
-                treasures_to_visit.remove(node)  # Удаляем сокровище из списка оставшихся для посещения
-                # Добавляем длину ребра, если оно существует
-                if (path[-1], node) in self.edges:
-                    total_length += self.graph.edges[path[-1], node]['weight']
-
-            for neighbor in self.graph.neighbors(node):  # Проходимся по соседям текущей вершины
-                if neighbor not in visited:  # Если соседняя вершина не посещена
-                    path.append(neighbor)  # Добавляем ее в путь
-                    dfs(neighbor)  # Рекурсивно вызываем обход для соседней вершины
-
-        dfs(start_node)  # Запускаем обход в глубину из стартовой вершины
-
-        # Добавляем ребро, соединяющее последнюю вершину в пути с начальной, если оно существует
-        if (path[-1], start_node) in self.edges:
-            total_length += self.graph.edges[path[-1], start_node]['weight']
-            path.append(start_node)
+        # Добавляем ребро, соединяющее последнюю вершину с сокровищами с начальной точкой
+        if nx.has_path(self.graph, path[-1], start_node):
+            shortest_path = nx.shortest_path(self.graph, path[-1], start_node, weight='weight')
+            total_length += nx.shortest_path_length(self.graph, path[-1], start_node, weight='weight')
+            path.extend(shortest_path[1:])  # Исключаем последнюю вершину, так как она уже включена в path
 
         print("Кратчайший путь с сокровищами:", path)
         print("Стоимость всего пути:", total_length)
@@ -133,6 +125,8 @@ class GraphApp:
             self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
 
         self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{total_length:.2f}"))
+
+
 
 
     def clear_canvas(self):
