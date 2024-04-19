@@ -99,20 +99,22 @@ class GraphApp:
         path = [start_node]  # Путь, который мы будем строить
         total_length = 0.0  # Общая длина пути
 
+        # Посещаем каждое сокровище в порядке их добавления
         for treasure in self.treasures:
             if nx.has_path(self.graph, start_node, treasure):
-                # Находим кратчайший путь от вершины 1 к текущему сокровищу
+                # Находим кратчайший путь от текущей вершины к сокровищу
                 shortest_path = nx.shortest_path(self.graph, start_node, treasure, weight='weight')
                 # Добавляем длину найденного пути к общей длине
                 total_length += nx.shortest_path_length(self.graph, start_node, treasure, weight='weight')
                 # Добавляем найденный путь к общему пути
                 path.extend(shortest_path[1:])  # Исключаем стартовую вершину, так как она уже включена в path
+                # Устанавливаем текущей вершиной последнее сокровище
+                start_node = treasure
 
-        # Добавляем ребро, соединяющее последнюю вершину с сокровищами с начальной точкой
-        if nx.has_path(self.graph, path[-1], start_node):
-            shortest_path = nx.shortest_path(self.graph, path[-1], start_node, weight='weight')
-            total_length += nx.shortest_path_length(self.graph, path[-1], start_node, weight='weight')
-            # Добавляем найденный путь к общему пути
+        # Возвращаемся в начальную вершину через кратчайший путь
+        if nx.has_path(self.graph, path[-1], self.nodes[0]):
+            shortest_path = nx.shortest_path(self.graph, path[-1], self.nodes[0], weight='weight')
+            total_length += nx.shortest_path_length(self.graph, path[-1], self.nodes[0], weight='weight')
             path.extend(shortest_path[1:])  # Исключаем последнюю вершину, так как она уже включена в path
 
         print("Кратчайший путь с сокровищами:", path)
@@ -128,26 +130,16 @@ class GraphApp:
         self.table.insert("", "end", values=("Итоговая стоимость пути:", "", f"{total_length:.2f}"))
 
         # Возвращаемся в начальную точку через те же ребра
-        for i in range(len(path) - 1):
+        for i in range(len(path) - 1, 0, -1):
             x1, y1 = map(int, path[i].strip("()").split(", "))
-            x2, y2 = map(int, path[i + 1].strip("()").split(", "))
-            # Добавляем обратное направление на ребро
-            self.graph.add_edge(path[i+1], path[i], weight=self.graph.edges[path[i], path[i+1]]['weight'])
-
-        # Отображаем возврат в начальную точку на холсте
-        for i in range(len(path) - 1):
-            x1, y1 = map(int, path[i].strip("()").split(", "))
-            x2, y2 = map(int, path[i + 1].strip("()").split(", "))
-            self.canvas.create_line(x2, y2, x1, y1, fill="red", arrow=tk.LAST, tags="cycle")
+            x2, y2 = map(int, path[i - 1].strip("()").split(", "))
+            self.canvas.create_line(x1, y1, x2, y2, fill="red", arrow=tk.LAST, tags="cycle")
 
         # Добавляем возврат в начальную точку к общему пути
-        path.reverse()
-        path.pop(0)  # Исключаем последнюю вершину, так как она уже включена в path
-        path.reverse()
-        self.table.insert("", "end", values=(start_node, "", f"{total_length:.2f}"))
+        self.table.insert("", "end", values=(self.nodes[0], "", f"{total_length:.2f}"))
 
         # Пересчитываем общую длину пути с учетом возврата в начальную точку
-        total_length += nx.shortest_path_length(self.graph, path[-1], start_node, weight='weight')
+        total_length += nx.shortest_path_length(self.graph, path[-1], self.nodes[0], weight='weight')
         print("Стоимость всего пути с возвратом в начальную точку:", total_length)
 
 
